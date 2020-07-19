@@ -150,8 +150,8 @@ class Polyline(object):
 
 class Knot(Polyline):
     def __init__(self, control_points=[], count=0):
-        super().__init__()
-        self.points = control_points or []
+        super().__init__(points=control_points)
+        #self.points = control_points or []
         self.count = count
 
     def __get_point(self, base_points, alpha, deg=None):
@@ -199,11 +199,13 @@ if __name__ == "__main__":
 
     # блок переменных, управляющих состоянием программы
     start_program_time = time.time()
-    steps = 40
+    steps = 20
     working = True
     show_help = False
     pause = True
     control_points = Polyline(screen_size=SCREEN_DIM)
+
+    curves = [Knot(control_points=control_points.points, count=steps)]
     # оттенок и цвет
     hue = 0
     color = pygame.Color(0)
@@ -220,6 +222,7 @@ if __name__ == "__main__":
                 if event.key == pygame.K_ESCAPE:
                     working = False
                 if event.key == pygame.K_r:
+                    curves = [Knot(control_points=control_points.points, count=steps)]
                     control_points = Polyline(screen_size=SCREEN_DIM)
                 if event.key == pygame.K_p:
                     pause = not pause
@@ -235,6 +238,10 @@ if __name__ == "__main__":
                     control_points.fast()
                 if event.key == pygame.K_s:
                     control_points.slow()
+                if event.key == pygame.K_n:
+                    control_points = Polyline(screen_size=SCREEN_DIM)
+                    curves.append(Knot(control_points=control_points.points, count=steps))
+
             if event.type == pygame.MOUSEBUTTONDOWN:
                 control_points.append(Vec2d(event.pos[0], event.pos[1]),
                                       Vec2d(random.random() * 4 - 2, random.random() * 4 - 2))
@@ -243,10 +250,14 @@ if __name__ == "__main__":
         time_delta = time.time() - start_program_time
         hue = int(time_delta * 20 % 360)
         color.hsla = (hue, 100, 50, 100)
-        control_points.draw_points()
-        knot = Knot(control_points=control_points.points, count=steps)
-        spline = Polyline(knot.get_knot())
-        spline.draw_curve(color)
+
+        for spline in curves:
+            control_points.draw_points()
+            spline.get_knot()
+            spline.draw_curve(color)
+            print("draw curve")
+            if not pause:
+                spline.set_points()
 
         if not pause:
             control_points.set_points()
