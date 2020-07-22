@@ -36,7 +36,12 @@ def draw_help(max_limit):
         data.append([f"{max_limit}", "MAXIMUM number of curves created"])
     else:
         data.append([f"{len(new_curves)}", "number of curves created"])
-    data.append([str(len(new_curves[active_curve].points)), "Active points"])
+
+    if len(new_curves[active_curve].points) == max_limit * 10:
+        data.append([f"{max_limit * 10}", "MAXIMUM number of points created"])
+    else:
+        data.append([str(len(new_curves[active_curve].points)), "Active points"])
+
     data.append([str(new_curves[active_curve].steps), "Current points"])
     if pause:
         data.append(["PAUSE", "is active"])
@@ -297,8 +302,12 @@ if __name__ == "__main__":
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
-                    new_curves[active_curve].append(Vec2d(event.pos[0], event.pos[1]),
-                                                    Vec2d(random.random() * 4 - 2, random.random() * 4 - 2))
+                    if len(new_curves) < max_limit * 10:
+                        new_curves[active_curve].append(Vec2d(event.pos[0], event.pos[1]),
+                                                        Vec2d(random.random() * 4 - 2, random.random() * 4 - 2))
+                    else:
+                        show_help = not show_help
+
                 elif event.button == 3:
                     new_curves[active_curve].del_point(Vec2d(event.pos[0], event.pos[1]))
 
