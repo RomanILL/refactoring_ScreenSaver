@@ -272,13 +272,17 @@ if __name__ == "__main__":
                         new_curves.append(Polyline(screen_size=SCREEN_DIM))
                         active_curve = len(new_curves) - 1
                     else:
-                        pass
+                        show_help = not show_help
                 if event.key == pygame.K_F8:
-                    if len(new_curves) > 2:
+                    if len(new_curves) > 1:
                         new_curves.pop(active_curve)
-                        active_curve -= 1
+                        if active_curve == 0:
+                            active_curve = 0
+                        else:
+                            active_curve -= 1
                     else:
-                        pass
+                        new_curves = [Polyline(screen_size=SCREEN_DIM)]
+                        active_curve = 0
                 if event.key == pygame.K_PAGEUP:
                     if active_curve != 0:
                         active_curve -= 1
