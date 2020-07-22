@@ -5,36 +5,35 @@ from typing import List, Any, Union
 import pygame
 import random
 import time
-import os
 
 SCREEN_DIM = (800, 600)
-
-
-def isfloat(value):
-    try:
-        float(value)
-        return True
-    except ValueError:
-        return False
 
 
 def draw_help():
     """ функция описания горячих клавиш """
     gameDisplay.fill((50, 50, 50))
-    font1 = pygame.font.SysFont("courier", 12)
-    font2 = pygame.font.SysFont("arial", 12)
+    font1 = pygame.font.SysFont("arial", 16)
+    font2 = pygame.font.SysFont("serif", 16)
     data = []
     data.append(["F1", "Show Help"])
+    data.append(["F2", f"Show/Hide control points (mode = {show_control_point})"])
     data.append(["R", "Restart"])
     data.append(["P", "Pause/Play"])
-    data.append(["Num+", "More points"])
-    data.append(["Num-", "Less points"])
-    data.append(["D", "Delete last point"])
+    data.append(["Num +", "More smoothing point"])
+    data.append(["Num -", "Less smoothing point"])
+    data.append(["Left MB", "Add new control point"])
+    data.append(["Del", "Delete last point"])
+    data.append(["Right MB", "Delete select point"])
     data.append(["S", "Make it slower"])
     data.append(["F", "Make it faster"])
+    data.append(["N", "Create a new curve"])
+    data.append(["F8", "Delete active curve"])
+    data.append(["Page Up", "Activate the previous curve"])
+    data.append(["Page Down", "Activate the next curve"])
     data.append(["", ""])
-    data.append([str(len(control_points.points)), "Active points"])
-    data.append([str(steps), "Current points"])
+    data.append([f"{active_curve + 1}", "Active curve id"])
+    data.append([str(len(new_curves[active_curve].points)), "Active points"])
+    data.append([str(new_curves[active_curve].steps), "Current points"])
     if pause:
         data.append(["PAUSE", "is active"])
 
@@ -42,9 +41,9 @@ def draw_help():
         (0, 0), (SCREEN_DIM[0], 0), (SCREEN_DIM[0], SCREEN_DIM[1]), (0, SCREEN_DIM[1])], 5)
     for i, text in enumerate(data):
         gameDisplay.blit(font1.render(
-            text[0], True, (128, 128, 255)), (100, 100 + 30 * i))
+            text[0], True, (128, 128, 255)), (100, 100 + 24 * i))
         gameDisplay.blit(font2.render(
-            text[1], True, (128, 128, 255)), (200, 100 + 30 * i))
+            text[1], True, (128, 128, 255)), (220, 100 + 24 * i))
 
 
 class Vec2d:
@@ -95,47 +94,52 @@ class Polyline(object):
     отрисовку ломанной (draw_points)
     """
 
-    def __init__(self, points=None, speeds=None, screen_size=(800, 600)):
+    def __init__(self, points=None, speeds=None, screen_size=(800, 600), steps=15):
         self.points = points or []
         self.speeds = speeds or []
         self.screen_size_x = screen_size[0]
         self.screen_size_y = screen_size[1]
+        self.steps = steps
+        #self.active = True
 
     def append(self, new_point, new_speed):
         # метод добавления новой контрольной точки в ломаную
         self.points.append(new_point)
         self.speeds.append(new_speed)
 
-    def undo(self):
-        # удаление последней контролькой точки
-        if len(self.points) != 0:
-            self.points.pop()
-            self.speeds.pop()
+    def del_point(self, del_point=None):
+        if del_point is None:
+            if len(self.points) != 0:
+                self.points.pop()
+                self.speeds.pop()
+        else:
+            for p_id in range(len(self.points)):
+                if ((del_point.x - 15) < self.points[p_id].x < (del_point.x + 15)) and \
+                        ((del_point.y - 15) < self.points[p_id].y < (del_point.y + 15)):
+                    self.points.pop(p_id)
+                    self.speeds.pop(p_id)
+                    break
 
-    def slow(self):
+    def change_speed(self, multiplier):
         for speed_id in range(len(self.speeds)):
             l = (self.speeds[speed_id].x ** 2 + self.speeds[speed_id].y ** 2) ** 0.5
-            if l > 0.2:
-                self.speeds[speed_id] = Vec2d(self.speeds[speed_id].x * 0.5, self.speeds[speed_id].y * 0.5)
+            if (multiplier < 1 and l > 0.05) or (multiplier > 1 and l < 4):
+                self.speeds[speed_id] = self.speeds[speed_id] * multiplier
 
-    def fast(self):
-        for speed_id in range(len(self.speeds)):
-            l = (self.speeds[speed_id].x ** 2 + self.speeds[speed_id].y ** 2) ** 0.5
-            if l < 3:
-                self.speeds[speed_id] = Vec2d(self.speeds[speed_id].x * 1.5, self.speeds[speed_id].y * 1.5)
-
-    def draw_curve(self, line_color, width=2):
+    @staticmethod
+    def draw_curve(points_to_draw, line_color, width=2):
         # метод рисования ломанной
-        for point_id in range(-1, len(self.points) - 1):
+        for point_id in range(-1, len(points_to_draw) - 1):
             next_id = point_id + 1
             pygame.draw.line(gameDisplay, line_color,
-                             (int(self.points[point_id].x), int(self.points[point_id].y)),
-                             (int(self.points[next_id].x), int(self.points[next_id].y)),
+                             (int(points_to_draw[point_id].x), int(points_to_draw[point_id].y)),
+                             (int(points_to_draw[next_id].x), int(points_to_draw[next_id].y)),
                              width)
 
-    def draw_points(self, point_color=(255, 255, 255), width=3):
+    @staticmethod
+    def draw_points(points_to_draw, point_color=(255, 255, 255), width=3):
         # метод рисования контрольных точек
-        for control_point in self.points:
+        for control_point in points_to_draw:
             pygame.draw.circle(gameDisplay, point_color, (int(control_point.x), int(control_point.y)), width)
 
     def set_points(self):
@@ -149,10 +153,12 @@ class Polyline(object):
 
 
 class Knot(Polyline):
-    def __init__(self, control_points=[], count=0):
-        super().__init__(points=control_points)
-        #self.points = control_points or []
-        self.count = count
+
+    def __init__(self, points=None, screen_size=(800, 600), steps=30):
+        self.points = points or []
+        self.screen_size_x = screen_size[0]
+        self.screen_size_y = screen_size[1]
+        self.steps = steps
 
     def __get_point(self, base_points, alpha, deg=None):
         if deg is None:
@@ -162,10 +168,11 @@ class Knot(Polyline):
         return (base_points[deg] * alpha + self.__get_point(base_points, alpha, deg - 1) * (1 - alpha))
 
     def __get_points(self, base_points):
-        alpha = 1 / self.count
         result_list = []
-        for i in range(self.count):
-            result_list.append(self.__get_point(base_points, i * alpha))
+        if self.steps != 0:
+            alpha = 1 / self.steps
+            for i in range(self.steps):
+                result_list.append(self.__get_point(base_points, i * alpha))
         return result_list
 
     def get_knot(self):
@@ -190,22 +197,18 @@ if __name__ == "__main__":
     pygame.init()
     gameDisplay = pygame.display.set_mode(SCREEN_DIM)
 
-    ''' # ставим свою картинку/иконку на окно
-    i_icon = os.getcwd() + '\\scr_svr.jpg'
-    icon = pygame.image.load(i_icon)
-    pygame.display.set_icon(icon)
-    '''
-    pygame.display.set_caption("My color curve screen saver 2.0")
+    pygame.display.set_caption("My screen saver 2.0")
 
     # блок переменных, управляющих состоянием программы
     start_program_time = time.time()
-    steps = 20
-    working = True
-    show_help = False
-    pause = True
-    control_points = Polyline(screen_size=SCREEN_DIM)
 
-    curves = [Knot(control_points=control_points.points, count=steps)]
+    working = True
+    show_help = True
+    pause = True
+    new_curves = [Polyline(screen_size=SCREEN_DIM)]
+    active_curve = 0
+    show_control_point = "Show"
+
     # оттенок и цвет
     hue = 0
     color = pygame.Color(0)
@@ -220,47 +223,91 @@ if __name__ == "__main__":
             # "слушаем" нажатия клавиш
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    working = False
+                    if show_help:
+                        show_help = not show_help
+                    else:
+                        working = False
                 if event.key == pygame.K_r:
-                    curves = [Knot(control_points=control_points.points, count=steps)]
-                    control_points = Polyline(screen_size=SCREEN_DIM)
-                if event.key == pygame.K_p:
+                    new_curves = [Polyline(screen_size=SCREEN_DIM)]
+                    active_curve = 0
+
+                if event.key == pygame.K_SPACE or event.key == pygame.K_p:
                     pause = not pause
-                if event.key == pygame.K_KP_PLUS:
-                    steps += 3 if steps < 50 else 50
+                if event.key == pygame.K_UP or event.key == pygame.K_KP_PLUS:
+                    if new_curves[active_curve].steps < 10:
+                        mera = 1
+                    elif new_curves[active_curve].steps < 20:
+                        mera = 3
+                    else:
+                        mera = 5
+                    new_curves[active_curve].steps += mera if new_curves[active_curve].steps < 37 else 0
                 if event.key == pygame.K_F1:
                     show_help = not show_help
-                if event.key == pygame.K_KP_MINUS:
-                    steps -= 3 if steps > 1 else 0
-                if event.key == pygame.K_d:
-                    control_points.undo()
+                if event.key == pygame.K_F2:
+                    if show_control_point == "Show":
+                        show_control_point = "Hide"
+                    else:
+                        show_control_point = "Show"
+                if event.key == pygame.K_DOWN or event.key == pygame.K_KP_MINUS:
+                    if new_curves[active_curve].steps < 10:
+                        mera = 1
+                    elif new_curves[active_curve].steps < 20:
+                        mera = 3
+                    else:
+                        mera = 5
+                    new_curves[active_curve].steps -= mera if new_curves[active_curve].steps > 1 else 0
+                if event.key == pygame.K_BACKSPACE:
+                    new_curves[active_curve].del_point()
                 if event.key == pygame.K_f:
-                    control_points.fast()
+                    new_curves[active_curve].change_speed(1.3)
                 if event.key == pygame.K_s:
-                    control_points.slow()
+                    new_curves[active_curve].change_speed(0.8)
                 if event.key == pygame.K_n:
-                    control_points = Polyline(screen_size=SCREEN_DIM)
-                    curves.append(Knot(control_points=control_points.points, count=steps))
+                    if len(new_curves) < 15:
+                        new_curves.append(Polyline(screen_size=SCREEN_DIM))
+                        active_curve = len(new_curves) - 1
+                    else:
+                        pass
+                if event.key == pygame.K_F8:
+                    if len(new_curves) > 2:
+                        new_curves.pop(active_curve)
+                        active_curve -= 1
+                    else:
+                        pass
+                if event.key == pygame.K_PAGEUP:
+                    if active_curve != 0:
+                        active_curve -= 1
+                    else:
+                        active_curve = len(new_curves) - 1
+
+                if event.key == pygame.K_PAGEDOWN:
+                    if active_curve != len(new_curves) - 1:
+                        active_curve += 1
+                    else:
+                        active_curve = 0
 
             if event.type == pygame.MOUSEBUTTONDOWN:
-                control_points.append(Vec2d(event.pos[0], event.pos[1]),
-                                      Vec2d(random.random() * 4 - 2, random.random() * 4 - 2))
+                if event.button == 1:
+                    new_curves[active_curve].append(Vec2d(event.pos[0], event.pos[1]),
+                                                    Vec2d(random.random() * 4 - 2, random.random() * 4 - 2))
+                elif event.button == 3:
+                    new_curves[active_curve].del_point(Vec2d(event.pos[0], event.pos[1]))
 
         gameDisplay.fill((0, 0, 0))
         time_delta = time.time() - start_program_time
         hue = int(time_delta * 20 % 360)
-        color.hsla = (hue, 100, 50, 100)
 
-        for spline in curves:
-            control_points.draw_points()
-            spline.get_knot()
-            spline.draw_curve(color)
-            print("draw curve")
+        smooth_curve = []
+        for spline_id in range(len(new_curves)):
+            if active_curve == spline_id and show_control_point == "Show":
+                new_curves[active_curve].draw_points(new_curves[active_curve].points)
+            smooth_curve = Knot(points=new_curves[spline_id].points, steps=new_curves[spline_id].steps)
+
+            color.hsla = ((hue + 50 * spline_id) % 360, 100, 50, 100)
+            Polyline.draw_curve(smooth_curve.get_knot(), color)
             if not pause:
-                spline.set_points()
+                new_curves[spline_id].set_points()
 
-        if not pause:
-            control_points.set_points()
         if show_help:
             draw_help()
 
