@@ -302,7 +302,7 @@ if __name__ == "__main__":
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
-                    if len(new_curves) < max_limit * 10:
+                    if len(new_curves[active_curve].points) < max_limit * 10:
                         new_curves[active_curve].append(Vec2d(event.pos[0], event.pos[1]),
                                                         Vec2d(random.random() * 4 - 2, random.random() * 4 - 2))
                     else:
