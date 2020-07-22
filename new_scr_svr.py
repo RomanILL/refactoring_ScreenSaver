@@ -9,13 +9,13 @@ import time
 SCREEN_DIM = (800, 600)
 
 
-def draw_help():
+def draw_help(max_limit):
     """ функция описания горячих клавиш """
     gameDisplay.fill((50, 50, 50))
     font1 = pygame.font.SysFont("arial", 16)
     font2 = pygame.font.SysFont("serif", 16)
     data = []
-    data.append(["F1", "Show Help"])
+    data.append(["F1", "Show/Hide Help"])
     data.append(["F2", f"Show/Hide control points (mode = {show_control_point})"])
     data.append(["R", "Restart"])
     data.append(["P", "Pause/Play"])
@@ -32,6 +32,10 @@ def draw_help():
     data.append(["Page Down", "Activate the next curve"])
     data.append(["", ""])
     data.append([f"{active_curve + 1}", "Active curve id"])
+    if len(new_curves) == max_limit:
+        data.append([f"{max_limit}", "MAXIMUM number of curves created"])
+    else:
+        data.append([f"{len(new_curves)}", "number of curves created"])
     data.append([str(len(new_curves[active_curve].points)), "Active points"])
     data.append([str(new_curves[active_curve].steps), "Current points"])
     if pause:
@@ -41,9 +45,9 @@ def draw_help():
         (0, 0), (SCREEN_DIM[0], 0), (SCREEN_DIM[0], SCREEN_DIM[1]), (0, SCREEN_DIM[1])], 5)
     for i, text in enumerate(data):
         gameDisplay.blit(font1.render(
-            text[0], True, (128, 128, 255)), (100, 100 + 24 * i))
+            text[0], True, (128, 128, 255)), (100, 50 + 24 * i))
         gameDisplay.blit(font2.render(
-            text[1], True, (128, 128, 255)), (220, 100 + 24 * i))
+            text[1], True, (128, 128, 255)), (220, 50 + 24 * i))
 
 
 class Vec2d:
@@ -100,7 +104,7 @@ class Polyline(object):
         self.screen_size_x = screen_size[0]
         self.screen_size_y = screen_size[1]
         self.steps = steps
-        #self.active = True
+
 
     def append(self, new_point, new_speed):
         # метод добавления новой контрольной точки в ломаную
@@ -208,6 +212,7 @@ if __name__ == "__main__":
     new_curves = [Polyline(screen_size=SCREEN_DIM)]
     active_curve = 0
     show_control_point = "Show"
+    max_limit = 15
 
     # оттенок и цвет
     hue = 0
@@ -263,7 +268,7 @@ if __name__ == "__main__":
                 if event.key == pygame.K_s:
                     new_curves[active_curve].change_speed(0.8)
                 if event.key == pygame.K_n:
-                    if len(new_curves) < 15:
+                    if len(new_curves) < max_limit:
                         new_curves.append(Polyline(screen_size=SCREEN_DIM))
                         active_curve = len(new_curves) - 1
                     else:
@@ -309,7 +314,7 @@ if __name__ == "__main__":
                 new_curves[spline_id].set_points()
 
         if show_help:
-            draw_help()
+            draw_help(max_limit)
 
         pygame.display.flip()
 
